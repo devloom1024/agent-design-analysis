@@ -1,3 +1,18 @@
 [submodule "codes/jetbrains-cc-gui"]
 	path = codes/jetbrains-cc-gui
 	url = https://github.com/zhukunpenglinyutong/jetbrains-cc-gui.git
+[submodule "codes/acpx"]
+	path = codes/acpx
+	url = https://github.com/openclaw/acpx.git
+[submodule "codes/agentapi"]
+	path = codes/agentapi
+	url = https://github.com/coder/agentapi.git
+[submodule "codes/claudecodeui"]
+	path = codes/claudecodeui
+	url = https://github.com/siteboon/claudecodeui.git
+[submodule "codes/lobehub"]
+	path = codes/lobehub
+	url = https://github.com/lobehub/lobehub.git
+[submodule "codes/AionUi"]
+	path = codes/AionUi
+	url = https://github.com/iOfficeAI/AionUi.git

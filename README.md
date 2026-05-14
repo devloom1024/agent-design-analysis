@@ -28,4 +28,9 @@ git submodule update --init --recursive
 
 | 路径 | 来源 |
 |------|------|
+| `codes/acpx` | https://github.com/openclaw/acpx |
+| `codes/agentapi` | https://github.com/coder/agentapi |
+| `codes/AionUi` | https://github.com/iOfficeAI/AionUi |
+| `codes/claudecodeui` | https://github.com/siteboon/claudecodeui |
 | `codes/jetbrains-cc-gui` | https://github.com/zhukunpenglinyutong/jetbrains-cc-gui |
+| `codes/lobehub` | https://github.com/lobehub/lobehub |
