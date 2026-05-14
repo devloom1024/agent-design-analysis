@@ -1,0 +1,3 @@
+[submodule "codes/jetbrains-cc-gui"]
+	path = codes/jetbrains-cc-gui
+	url = https://github.com/zhukunpenglinyutong/jetbrains-cc-gui.git
