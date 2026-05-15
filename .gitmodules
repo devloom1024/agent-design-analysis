@@ -19,3 +19,12 @@
 [submodule "codes/Proma"]
 	path = codes/Proma
 	url = https://github.com/ErlichLiu/Proma.git
+[submodule "codes/openai-node"]
+	path = codes/openai-node
+	url = https://github.com/openai/openai-node.git
+[submodule "codes/anthropic-sdk-typescript"]
+	path = codes/anthropic-sdk-typescript
+	url = https://github.com/anthropics/anthropic-sdk-typescript.git
+[submodule "codes/acp-typescript-sdk"]
+	path = codes/acp-typescript-sdk
+	url = https://github.com/agentclientprotocol/typescript-sdk.git

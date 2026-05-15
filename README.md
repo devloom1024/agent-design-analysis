@@ -35,3 +35,6 @@ git submodule update --init --recursive
 | `codes/jetbrains-cc-gui` | https://github.com/zhukunpenglinyutong/jetbrains-cc-gui |
 | `codes/lobehub` | https://github.com/lobehub/lobehub |
 | `codes/Proma` | https://github.com/ErlichLiu/Proma |
+| `codes/openai-node` | https://github.com/openai/openai-node |
+| `codes/anthropic-sdk-typescript` | https://github.com/anthropics/anthropic-sdk-typescript |
+| `codes/acp-typescript-sdk` | https://github.com/agentclientprotocol/typescript-sdk |
