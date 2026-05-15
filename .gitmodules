@@ -16,3 +16,6 @@
 [submodule "codes/AionUi"]
 	path = codes/AionUi
 	url = https://github.com/iOfficeAI/AionUi.git
+[submodule "codes/Proma"]
+	path = codes/Proma
+	url = https://github.com/ErlichLiu/Proma.git

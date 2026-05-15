@@ -1,21 +1,21 @@
 # AI 编码工具统一调度架构研究
 
-对 6 个开源项目如何统一调用 Claude Code、Codex、Gemini、OpenCode 等 AI 编码工具的研究总结。
+对 7 个开源项目如何统一调用 Claude Code、Codex、Gemini、OpenCode 等 AI 编码工具的研究总结。
 
 ## 项目全景对比
 
-| 维度 | CC GUI | Claude Code UI | acpx | AgentAPI | AionUi | LobeHub |
-|------|--------|---------------|------|----------|--------|---------|
-| **类型** | IDE 插件 | Web UI | CLI 客户端 | HTTP API 服务器 | 桌面应用 | Web 应用 |
-| **技术栈** | Java + Node.js | Express + React | TypeScript CLI | Go + Next.js | Electron + React | Next.js monorepo |
-| **统一方式** | Bridge 抽象类 | IProvider 五面接口 | ACP 协议 | AgentIO + Conversation | ClientFactory + ACP | LobeRuntimeAI |
-| **Agent CLI 数** | 2 (Claude, Codex) | 4 (Claude, Codex, Cursor, Gemini) | 16 (全部通过 ACP) | 12 (PTY 终端仿真) | 17+ (ACP + 非 ACP) | 80+ (LLM Provider) |
-| **通信协议** | NDJSON over stdio | SDK / child_process | JSON-RPC 2.0 over stdio | PTY / ACP | ACP + IPC/WebSocket | HTTP (OpenAI/Anthropic SDK) |
-| **消息标准化** | SDK 原生事件 | NormalizedMessage | AcpRuntimeEvent | ConversationMessage | TMessage | ChatStreamPayload |
-| **进程模式** | Daemon + Per-process | SDK / spawn | spawn (一类一进程) | PTY spawn | ACP spawn | HTTP 请求 |
-| **核心设计模式** | 模板方法 + 策略 | 抽象工厂 + 适配器 | 注册表 + 适配器 | 策略 + 桥接 | 工厂 + 状态机 | 工厂 + Router |
+| 维度 | CC GUI | Claude Code UI | acpx | AgentAPI | AionUi | LobeHub | Proma |
+|------|--------|---------------|------|----------|--------|---------|-------|
+| **类型** | IDE 插件 | Web UI | CLI 客户端 | HTTP API 服务器 | 桌面应用 | Web 应用 | 桌面应用 |
+| **技术栈** | Java + Node.js | Express + React | TypeScript CLI | Go + Next.js | Electron + React | Next.js monorepo | Electron + Bun monorepo |
+| **统一方式** | Bridge 抽象类 | IProvider 五面接口 | ACP 协议 | AgentIO + Conversation | ClientFactory + ACP | LobeRuntimeAI | Provider Adapter + Claude Agent SDK |
+| **Agent CLI 数** | 2 (Claude, Codex) | 4 (Claude, Codex, Cursor, Gemini) | 16 (全部通过 ACP) | 12 (PTY 终端仿真) | 17+ (ACP + 非 ACP) | 80+ (LLM Provider) | Chat 3 Provider / Agent 8 Channel |
+| **通信协议** | NDJSON over stdio | SDK / child_process | JSON-RPC 2.0 over stdio | PTY / ACP | ACP + IPC/WebSocket | HTTP (OpenAI/Anthropic SDK) | IPC + SDK child_process / fetch SSE |
+| **消息标准化** | SDK 原生事件 | NormalizedMessage | AcpRuntimeEvent | ConversationMessage | TMessage | ChatStreamPayload | AgentEvent + ChatStreamState |
+| **进程模式** | Daemon + Per-process | SDK / spawn | spawn (一类一进程) | PTY spawn | ACP spawn | HTTP 请求 | SDK child_process / fetch |
+| **核心设计模式** | 模板方法 + 策略 | 抽象工厂 + 适配器 | 注册表 + 适配器 | 策略 + 桥接 | 工厂 + 状态机 | 工厂 + Router | 适配器 + 事件总线 + 原子状态 |
 
-## 统一的四种架构范式
+## 统一的五种架构范式
 
 ### 范式一：私有协议适配层（CC GUI、Claude Code UI）
 
@@ -49,16 +49,25 @@
 - **缺点**: 仅面向 LLM API，不直接控制 CLI 编码工具
 - **代表实现**: `openaiCompatibleFactory`、`RouterRuntime`
 
+### 范式五：双模式混合（Proma）
+
+同一应用内 Chat 和 Agent 两套模式独立运作。Chat 使用 Provider Adapter + fetch SSE；Agent 使用 Claude Agent SDK + child_process。
+
+- **优点**: 轻量 Chat 和强大 Agent 模式共存，各取所长
+- **缺点**: 两套消息体系增加维护成本，Agent 模式依赖 SDK 二进制 (~200MB)
+- **代表实现**: `ClaudeAgentAdapter`、`sse-reader.ts`
+
 ## 关键设计决策对比
 
-| 决策点 | 选择 A (SDK 内嵌) | 选择 B (子进程) | 选择 C (PTY 仿真) |
-|--------|-----------------|----------------|-----------------|
-| Claude Code UI | ✓ Claude/Codex | ✓ Cursor/Gemini | — |
-| CC GUI | ✓ Claude/Codex (SDK) | 回退模式 | — |
-| acpx | — | ✓ 全部通过 spawn | — |
-| AgentAPI | — | — | ✓ 默认模式 |
-| AionUi | — | ✓ 全部通过 spawn | — |
-| LobeHub | ✓ HTTP API | — | — |
+| 决策点 | 选择 A (SDK 内嵌) | 选择 B (子进程) | 选择 C (PTY 仿真) | 选择 D (HTTP API) |
+|--------|-----------------|----------------|-----------------|-----------------|
+| Claude Code UI | ✓ Claude/Codex | ✓ Cursor/Gemini | — | — |
+| CC GUI | ✓ Claude/Codex (SDK) | 回退模式 | — | — |
+| acpx | — | ✓ 全部通过 spawn | — | — |
+| AgentAPI | — | — | ✓ 默认模式 | — |
+| AionUi | — | ✓ 全部通过 spawn | — | — |
+| LobeHub | — | — | — | ✓ HTTP API |
+| Proma | ✓ Agent (SDK) | — | — | ✓ Chat (fetch SSE) |
 
 ## 消息标准化策略
 
@@ -80,6 +89,7 @@
 | AgentAPI | `ConversationMessage` | PTY 屏幕差异 → FormatMessage() |
 | AionUi | `TMessage` | AcpAdapter 转换 ACP SessionUpdate |
 | LobeHub | OpenAI Chat Stream | 各 Provider 适配器统一到 OpenAI 流格式 |
+| Proma | `AgentEvent` / `ChatStreamState` | convertSDKMessage() / adapter.parseSSELine() |
 
 ## 各项目文档
 
@@ -91,3 +101,4 @@
 | AgentAPI (PTY HTTP 服务器) | [agentapi.md](./agentapi.md) |
 | AionUi (桌面应用) | [AionUi.md](./AionUi.md) |
 | LobeHub (Web 应用) | [lobehub.md](./lobehub.md) |
+| Proma (桌面工作台) | [proma.md](./proma.md) |

@@ -34,3 +34,4 @@ git submodule update --init --recursive
 | `codes/claudecodeui` | https://github.com/siteboon/claudecodeui |
 | `codes/jetbrains-cc-gui` | https://github.com/zhukunpenglinyutong/jetbrains-cc-gui |
 | `codes/lobehub` | https://github.com/lobehub/lobehub |
+| `codes/Proma` | https://github.com/ErlichLiu/Proma |
