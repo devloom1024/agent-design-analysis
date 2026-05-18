@@ -28,3 +28,6 @@
 [submodule "codes/acp-typescript-sdk"]
 	path = codes/acp-typescript-sdk
 	url = https://github.com/agentclientprotocol/typescript-sdk.git
+[submodule "codes/agentscope-java"]
+	path = codes/agentscope-java
+	url = https://github.com/agentscope-ai/agentscope-java.git
