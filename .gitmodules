@@ -31,3 +31,9 @@
 [submodule "codes/agentscope-java"]
 	path = codes/agentscope-java
 	url = https://github.com/agentscope-ai/agentscope-java.git
+[submodule "codes/learn-claude-code"]
+	path = codes/learn-claude-code
+	url = https://github.com/shareAI-lab/learn-claude-code.git
+[submodule "codes/ClawTeam"]
+	path = codes/ClawTeam
+	url = https://github.com/HKUDS/ClawTeam.git

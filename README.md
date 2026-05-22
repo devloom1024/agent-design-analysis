@@ -1,20 +1,22 @@
 # agent-design-analysis
 
-AI 编码工具的**统一调度架构**深度研究——对 7 个应用项目和 3 个底层 SDK 的全方位对比分析，覆盖架构设计、消息格式、生命周期、权限机制和 UI 渲染五个维度。
+AI 编码工具的**统一调度架构**深度研究——对 7 个应用项目和 3 个底层 SDK 的全方位对比分析，并补充 2 个 Agent/Harness 参考项目，覆盖架构设计、消息格式、生命周期、权限机制和 UI 渲染五个维度。
 
 ## 目录结构
 
 ```
 agent-design-analysis/
-├── codes/                          # 参考代码（git submodule × 11）
+├── codes/                          # 参考代码（git submodule × 13）
 │   ├── acpx/                       # ACP CLI 客户端
 │   ├── acp-typescript-sdk/         # ACP 协议 TypeScript SDK
 │   ├── agentscope-java/            # AgentScope Java 框架
 │   ├── agentapi/                   # PTY HTTP API 服务器
 │   ├── AionUi/                     # 桌面 AI 应用
 │   ├── anthropic-sdk-typescript/   # Anthropic SDK
+│   ├── ClawTeam/                   # 多 Agent 群体协作框架
 │   ├── claudecodeui/               # Claude Code Web UI
 │   ├── jetbrains-cc-gui/           # JetBrains IDE 插件
+│   ├── learn-claude-code/          # Claude Code Harness 工程教程
 │   ├── lobehub/                    # LobeHub Web 应用
 │   ├── openai-node/                # OpenAI Node.js SDK
 │   └── Proma/                      # Proma 桌面工作台
@@ -50,6 +52,13 @@ agent-design-analysis/
 | **openai-node** | OpenAI Chat Completions + Responses | HTTP SSE (`[DONE]` 哨兵) |
 | **anthropic-sdk-typescript** | Anthropic Messages API | HTTP SSE（命名事件） |
 | **acp-typescript-sdk** | Agent Client Protocol | JSON-RPC 2.0 over NDJSON |
+
+### 参考扩展（2 个项目）
+
+| 项目 | 类型 | 核心关注 |
+|------|------|---------|
+| **ClawTeam** | 多 Agent 群体协作框架 | Agent Swarm、团队模板、任务委派与协作执行 |
+| **Learn Claude Code** | Claude Code Harness 工程教程 | Agent Loop、工具系统、上下文管理、权限边界 |
 
 ## 五种架构范式
 
@@ -115,8 +124,10 @@ git submodule update --init --recursive
 | `codes/agentapi` | https://github.com/coder/agentapi |
 | `codes/AionUi` | https://github.com/iOfficeAI/AionUi |
 | `codes/anthropic-sdk-typescript` | https://github.com/anthropics/anthropic-sdk-typescript |
+| `codes/ClawTeam` | https://github.com/HKUDS/ClawTeam |
 | `codes/claudecodeui` | https://github.com/siteboon/claudecodeui |
 | `codes/jetbrains-cc-gui` | https://github.com/zhukunpenglinyutong/jetbrains-cc-gui |
+| `codes/learn-claude-code` | https://github.com/shareAI-lab/learn-claude-code |
 | `codes/lobehub` | https://github.com/lobehub/lobehub |
 | `codes/openai-node` | https://github.com/openai/openai-node |
 | `codes/Proma` | https://github.com/ErlichLiu/Proma |
