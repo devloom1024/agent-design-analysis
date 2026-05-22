@@ -6,9 +6,10 @@ AI 编码工具的**统一调度架构**深度研究——对 7 个应用项目�
 
 ```
 agent-design-analysis/
-├── codes/                          # 参考代码（git submodule × 10）
+├── codes/                          # 参考代码（git submodule × 11）
 │   ├── acpx/                       # ACP CLI 客户端
 │   ├── acp-typescript-sdk/         # ACP 协议 TypeScript SDK
+│   ├── agentscope-java/            # AgentScope Java 框架
 │   ├── agentapi/                   # PTY HTTP API 服务器
 │   ├── AionUi/                     # 桌面 AI 应用
 │   ├── anthropic-sdk-typescript/   # Anthropic SDK
@@ -23,7 +24,8 @@ agent-design-analysis/
 │   ├── agent-lifecycle/            # Agent 会话与进程生命周期
 │   ├── tool-permissions/           # 工具调用与权限机制
 │   ├── ui-rendering/               # UI 渲染层（流式 + 历史）
-│   └── sdk-protocols/              # 底层 SDK 协议接口定义
+│   ├── sdk-protocols/              # 底层 SDK 协议接口定义
+│   └── agentscope-java/            # AgentScope Java HITL 与 Tool Suspend 机制
 └── README.md
 ```
 
@@ -85,6 +87,10 @@ UI 渲染层分析，对比技术栈（React/Vue/CLI）、流式策略（逐帧�
 
 底层 SDK 协议接口定义，包含 OpenAI Chat Completions（6 种角色 + ContentPart）、Anthropic Messages（ContentBlock[] 强类型 + Extended Thinking）、ACP（JSON-RPC 2.0 双向 + Session 管理 + 权限流程）的完整请求/响应结构参考。
 
+### [agentscope-java/](docs/agentscope-java/)
+
+AgentScope Java 框架的 HITL（Human-in-the-Loop）与 Tool Suspend 机制深度分析，包含双层挂起架构（ToolSuspendException 工具级挂起 + Hook.stopAgent Agent 级暂停）、ReActAgent 主循环中的恢复原理、SubAgent/自定义 AgentTool 嵌套场景下的 HITL 支持方案对比。
+
 ## 克隆仓库
 
 本项目包含 git submodule，克隆时请使用：
@@ -105,6 +111,7 @@ git submodule update --init --recursive
 |------|------|
 | `codes/acpx` | https://github.com/openclaw/acpx |
 | `codes/acp-typescript-sdk` | https://github.com/agentclientprotocol/typescript-sdk |
+| `codes/agentscope-java` | https://github.com/agentscope-ai/agentscope-java |
 | `codes/agentapi` | https://github.com/coder/agentapi |
 | `codes/AionUi` | https://github.com/iOfficeAI/AionUi |
 | `codes/anthropic-sdk-typescript` | https://github.com/anthropics/anthropic-sdk-typescript |
