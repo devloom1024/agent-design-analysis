@@ -57,6 +57,10 @@
 - **缺点**: 两套消息体系增加维护成本，Agent 模式依赖 SDK 二进制 (~200MB)
 - **代表实现**: `ClaudeAgentAdapter`、`sse-reader.ts`
 
+## 双端专题
+
+- [Web + Desktop 双端架构分析](./web-desktop-dual-end-analysis.md) — AionUi 与 LobeHub 的双端实现对照
+
 ## 关键设计决策对比
 
 | 决策点 | 选择 A (SDK 内嵌) | 选择 B (子进程) | 选择 C (PTY 仿真) | 选择 D (HTTP API) |
