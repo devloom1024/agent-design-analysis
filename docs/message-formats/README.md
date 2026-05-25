@@ -44,6 +44,7 @@
 
 | 项目 | 文档 |
 |------|------|
+| Stream 与入库消息形态设计 | [stream-vs-persisted-message-design.md](./stream-vs-persisted-message-design.md) |
 | CC GUI (JetBrains 插件) | [jetbrains-cc-gui.md](./jetbrains-cc-gui.md) |
 | Claude Code UI | [claudecodeui.md](./claudecodeui.md) |
 | acpx | [acpx.md](./acpx.md) |
