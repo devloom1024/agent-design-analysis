@@ -37,3 +37,6 @@
 [submodule "codes/ClawTeam"]
 	path = codes/ClawTeam
 	url = https://github.com/HKUDS/ClawTeam.git
+[submodule "codes/claude-code-sourcemap"]
+	path = codes/claude-code-sourcemap
+	url = https://github.com/ChinaSiro/claude-code-sourcemap.git

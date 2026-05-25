@@ -1,6 +1,6 @@
 # Stream 与入库消息形态调研
 
-本文调研当前仓库内 7 个应用对“消息目录/消息列表”的设计方式，重点回答两个问题：
+本文调研当前仓库内 8 个应用对“消息目录/消息列表”的设计方式，重点回答两个问题：
 
 1. 消息在实时生成过程中以什么形态流动。
 2. 消息在入库、恢复、分页、搜索、上下文组装时以什么形态保存。
@@ -27,6 +27,7 @@
 | --- | --- | --- | --- | --- |
 | acpx | `AcpRuntimeEvent`，通过 `AsyncIterable` 输出 | `SessionRecord.messages` + `eventLog` | ACP `session/update` 转 runtime event，再由 session record 保存最终会话 | 协议事件和持久会话记录分层很清晰 |
 | Claude Code UI | WebSocket `NormalizedMessage`，含 `stream_delta`、`stream_end` | 后端 JSONL 历史；前端 `serverMessages` | `realtimeMessages` 和 `serverMessages` 合并去重 | 前端“双轨合并”适合断线与服务端追平 |
+| Claude Code sourcemap | Anthropic raw stream event 包成 `StreamEvent`，并额外产出完整 `AssistantMessage` | `~/.claude/projects/<project>/<session>.jsonl` transcript，每行是完整 message 或 metadata entry | `content_block_delta` 按 block index 聚合，`content_block_stop` 生成完整 assistant message；JSONL 用 `parentUuid` 串链 | 最接近 Claude Code CLI 内核，适合参考 transcript、resume、compact、sidechain 设计 |
 | AionUi | ACP `sessionUpdate` 转 `TMessage` | 数据库 `TMessage` | 通过 `msg_id`、`toolCallId`、`sessionId` 合并 | `composeMessage` 对文本、工具、计划的合并规则明确 |
 | LobeHub | `StreamingHandler` 累积 text、reasoning、tools | PostgreSQL `messages`、`message_plugins` 等 | stream 更新前端，finish 时写回消息行并刷新 | 乐观更新 + 完成落库 + 完整刷新 |
 | Proma | Chat SSE；Agent `AgentEventBus` + IPC `STREAM_EVENT` | Chat/Agent JSONL | 前端 Jotai atom 保存运行中状态，最终 append JSONL | 本地应用使用 JSONL 简洁可靠 |
@@ -64,6 +65,7 @@ Stream 事件通常只有以下职责：
 典型例子：
 
 - Claude Code UI 用 `realtimeMessages` 保存实时消息，用 `serverMessages` 保存历史消息，再计算 `merged`。
+- Claude Code sourcemap 在 `handleMessageFromStream` 中把 raw stream event 转为 streaming text、streaming thinking、streaming tool uses 等运行时展示态。
 - AionUi 用 `composeMessage` 把相同 `msg_id` 的文本 chunk 合并成一条消息。
 - LobeHub 用 `StreamingHandler.output`、`thinkingContent`、`tools` 保存当前轮聚合状态。
 - Proma 用 Jotai `streamingStatesAtom` / `agentStreamingStatesAtom` 保存运行中状态。
@@ -198,6 +200,245 @@ type SessionSlot = {
 - `codes/claudecodeui/src/stores/useSessionStore.ts`
 - `codes/claudecodeui/src/components/chat/hooks/useChatRealtimeHandlers.ts`
 - `codes/claudecodeui/server/shared/types.ts`
+
+### Claude Code sourcemap
+
+`claude-code-sourcemap` 是从 `@anthropic-ai/claude-code` npm 包 sourcemap 还原出的 Claude Code 2.1.88 源码。它不是一个普通 UI 应用，而更接近 Claude Code CLI 内核本身，所以它对“stream 事件”和“transcript 入库消息”的分层最值得单独看。
+
+核心结论：
+
+- 实时阶段直接消费 Anthropic raw stream event，但包成内部 `StreamEvent`。
+- UI 不把每个 delta 当最终消息，而是在 `handleMessageFromStream` 中维护 streaming text、streaming thinking、streaming tool uses。
+- 持久化不是 DB row，而是 append-only JSONL transcript。
+- transcript 的主数据不是 chunk，而是完整 `user` / `assistant` / `system` / `attachment` message。
+- 每条 transcript message 都有 `uuid` 和 `parentUuid`，通过链式关系支持 resume、fork、compact、sidechain。
+
+Stream 输出形态：
+
+```ts
+type QueryYield =
+  | StreamEvent
+  | RequestStartEvent
+  | Message
+  | TombstoneMessage
+  | ToolUseSummaryMessage;
+
+type RequestStartEvent = {
+  type: 'stream_request_start';
+};
+
+type StreamEvent = {
+  type: 'stream_event';
+  event: BetaRawMessageStreamEvent;
+  ttftMs?: number;
+};
+```
+
+其中 `BetaRawMessageStreamEvent` 主要来自 Anthropic Messages streaming API：
+
+| raw event | 作用 | Claude Code 处理方式 |
+| --- | --- | --- |
+| `message_start` | 初始化本轮 assistant message、usage | 保存 `partialMessage`，记录 TTFT 和初始 usage |
+| `content_block_start` | 开始一个 content block | 按 `index` 初始化 `contentBlocks[index]`，区分 text、thinking、tool_use、server_tool_use |
+| `content_block_delta` | 文本、thinking 或 tool input 增量 | 追加到 `contentBlocks[index]`；同时原样 yield `stream_event` 给 UI/SDK |
+| `content_block_stop` | 一个 block 完成 | 用该 block 创建完整 `AssistantMessage`，立刻 yield 这个 message |
+| `message_delta` | 最终 usage、stop_reason | 回写到最后一个已生成的 assistant message |
+| `message_stop` | 本轮 stream 完成 | 通知 UI stream 结束、清空 streaming tool uses |
+
+这里有一个很重要的设计点：Claude Code 不是等整个 assistant response 全部结束后才创建 assistant message，而是在每个 `content_block_stop` 处创建一个完整 `AssistantMessage`。因此一个模型响应如果包含多个 content block，可能会变成多条 assistant message；这些 message 用各自的 `uuid` 表示，但共享同一个 request 过程。
+
+Assistant message 的生成逻辑可以概括为：
+
+```ts
+const assistantMessage: AssistantMessage = {
+  type: 'assistant',
+  uuid: randomUUID(),
+  timestamp: new Date().toISOString(),
+  requestId: streamRequestId,
+  message: {
+    ...partialMessage,
+    content: normalizeContentFromAPI([contentBlock], tools, agentId),
+  },
+};
+```
+
+UI 运行时聚合：
+
+```ts
+function handleMessageFromStream(
+  message:
+    | Message
+    | TombstoneMessage
+    | StreamEvent
+    | RequestStartEvent
+    | ToolUseSummaryMessage,
+  onMessage: (message: Message) => void,
+  onUpdateLength: (newContent: string) => void,
+  onSetStreamMode: (mode: SpinnerMode) => void,
+  onStreamingToolUses: (
+    f: (streamingToolUse: StreamingToolUse[]) => StreamingToolUse[],
+  ) => void,
+  onTombstone?: (message: Message) => void,
+  onStreamingThinking?: (
+    f: (current: StreamingThinking | null) => StreamingThinking | null,
+  ) => void,
+  onApiMetrics?: (metrics: { ttftMs: number }) => void,
+  onStreamingText?: (f: (current: string | null) => string | null) => void,
+): void;
+```
+
+运行时行为：
+
+- `stream_request_start` 把 UI 模式设为 `requesting`。
+- `message_start` 可记录 `ttftMs`。
+- `content_block_start:text` 把 UI 模式设为 `responding`。
+- `content_block_start:thinking` 把 UI 模式设为 `thinking`。
+- `content_block_start:tool_use` 把 UI 模式设为 `tool-input`，并创建一个 `StreamingToolUse`。
+- `content_block_delta:text_delta` 追加到 `streamingText`，也更新 response length。
+- `content_block_delta:input_json_delta` 追加到对应 tool use 的 `unparsedToolInput`。
+- `content_block_delta:thinking_delta` 只更新长度；完整 thinking block 在 assistant message 到达后再用于 transcript 展示。
+- 非 stream 的完整 `assistant` / `user` / `system` message 到达时，清空 `streamingText`，再追加到正式 messages。
+- `tombstone` 会删除已产生的 message，同时调用 `removeTranscriptMessage` 删除 transcript 中的孤儿消息。
+
+这说明 Claude Code 的 UI 层有三类对象同时存在：
+
+| 对象 | 来源 | 用途 | 是否入 transcript |
+| --- | --- | --- | --- |
+| `StreamEvent` | raw provider event 包装 | 驱动 spinner、streaming text、streaming tool input | 不作为主消息入库 |
+| `Message` | user 输入、assistant block 完成、system 事件 | 正式显示、上下文拼装、transcript 写入 | 是 |
+| `TombstoneMessage` | streaming fallback 或异常恢复 | 删除孤儿 assistant message | 本身不作为主消息，作用于已有 transcript |
+
+SDK / remote 形态：
+
+```ts
+type SDKPartialAssistantMessage = {
+  type: 'stream_event';
+  event: RawMessageStreamEvent;
+  parent_tool_use_id: string | null;
+  uuid: string;
+  session_id: string;
+};
+
+type SDKAssistantMessage = {
+  type: 'assistant';
+  message: APIAssistantMessage;
+  parent_tool_use_id: string | null;
+  error?: SDKAssistantMessageError;
+  uuid: string;
+  session_id: string;
+};
+```
+
+remote adapter 的策略也很清楚：
+
+- SDK `stream_event` 转回内部 `StreamEvent`。
+- SDK `assistant` 转成内部 `AssistantMessage`。
+- 普通 user message 在 live WS 模式通常忽略，因为本地 REPL 已经把用户输入加入 UI。
+- tool_result user message 可选择转换，因为它需要和远端工具结果一起展示。
+
+入库形态：
+
+```ts
+type SerializedMessage = Message & {
+  cwd: string;
+  userType: string;
+  entrypoint?: string;
+  sessionId: string;
+  timestamp: string;
+  version: string;
+  gitBranch?: string;
+  slug?: string;
+};
+
+type TranscriptMessage = SerializedMessage & {
+  parentUuid: UUID | null;
+  logicalParentUuid?: UUID | null;
+  isSidechain: boolean;
+  gitBranch?: string;
+  agentId?: string;
+  teamName?: string;
+  agentName?: string;
+  agentColor?: string;
+  promptId?: string;
+};
+```
+
+本地 transcript 路径：
+
+```text
+~/.claude/projects/<sanitized-project-dir>/<sessionId>.jsonl
+~/.claude/projects/<sanitized-project-dir>/<sessionId>/subagents/agent-<agentId>.jsonl
+```
+
+写入规则：
+
+1. session 文件不会在启动时立即创建，而是在第一条 `user` 或 `assistant` message 出现时 `materializeSessionFile`。
+2. 写入前调用 `cleanMessagesForLogging`：
+   - `progress` 不入 transcript。
+   - 外部用户默认过滤大部分 attachment。
+   - 对外部用户隐藏 REPL wrapper，把虚拟 REPL tool use / tool result 转成更自然的原生工具历史。
+3. `recordTranscript` 根据 message `uuid` 去重，只把新 message 交给 `insertMessageChain`。
+4. `insertMessageChain` 给每条 transcript message 补充 `cwd`、`sessionId`、`timestamp`、`version`、`gitBranch`、`slug`。
+5. `parentUuid` 默认指向上一条链上 message。
+6. 如果 user message 是 tool result，并带有 `sourceToolAssistantUUID`，则 `parentUuid` 指向触发该 tool use 的 assistant message。
+7. compact boundary 的 `parentUuid` 写成 `null`，同时用 `logicalParentUuid` 保存逻辑父节点。
+8. 实际写文件不是同步逐条落盘，而是进入 per-file write queue，默认 100ms drain 一次，批量 append JSONL。
+
+transcript JSONL 不只有 message，也有 metadata entry：
+
+| entry type | 作用 |
+| --- | --- |
+| `summary` | session 摘要 |
+| `custom-title` / `ai-title` | 会话标题 |
+| `last-prompt` | 最近一次真实用户 prompt，用于 resume 列表 |
+| `tag` | 用户标签 |
+| `agent-name` / `agent-color` / `agent-setting` | agent 展示和恢复信息 |
+| `worktree-state` | worktree 会话状态 |
+| `content-replacement` | 记录大内容替换，resume 时恢复 prompt cache 语义 |
+| `file-history-snapshot` | 文件历史快照 |
+| `attribution-snapshot` | 文件贡献归因 |
+| compact 相关 entry | 支持 compact 后恢复上下文链 |
+
+读取恢复：
+
+- `loadTranscriptFile` 读取 JSONL。
+- 对大文件先做 pre-compact skip，避免解析大量已经被 compact 截断的旧内容。
+- `isTranscriptMessage` 只把 `user`、`assistant`、`attachment`、`system` 作为 transcript 主消息。
+- 旧版本里可能存在 `progress` 进入 parent chain 的情况，读取时会用 `progressBridge` 把链桥接到最近的非 progress 父节点。
+- 最终通过 `parentUuid` 找到可恢复的 conversation chain，而不是简单取文件里所有行。
+
+远端/bridge stream 传输：
+
+Claude Code 还有一层用于远端 session 的 `HybridTransport`：
+
+- WebSocket 负责读。
+- HTTP POST 负责写。
+- `stream_event` 会先在内存 buffer 最多 100ms，减少高频 delta 的 POST 次数。
+- 非 stream event 会先 flush 已缓存的 stream event，再发送自己，保证顺序。
+- POST 侧用串行 batch uploader，避免并发写同一个远端 session。
+
+这层说明一个设计边界：`stream_event` 可以进入远端事件通道，但不等于本地 transcript 主消息。它更像 event transport 或 event log，而不是最终 message store。
+
+设计判断：
+
+- Claude Code sourcemap 是“event + final message + transcript chain”组合最完整的参考。
+- 它没有简单采用“一条 assistant response = 一条消息”的模型，而是按 content block 生成 assistant message，这对工具调用和 thinking 展示很友好，但要求展示层能做 group / collapse。
+- `message_delta` 回写 usage 和 stop_reason 到最后一条 assistant message，是为了让 transcript 捕获最终 usage；如果后续设计使用数据库，建议用显式 final update，而不是依赖对象引用在 flush 前被修改。
+- `parentUuid` 比单纯 `createdAt` 排序更适合 resume、fork、compact、删除孤儿 message。
+- `progress` 被排除在 transcript 主链外，这一点非常关键。进度事件适合 UI 和 event log，不适合进入长期上下文。
+- 如果我们要支持 Claude Code 风格的 fork、compact、subagent、remote session，应该参考它的 JSONL transcript + metadata entry + parent chain，而不是只存扁平消息列表。
+
+相关代码：
+
+- `codes/claude-code-sourcemap/restored-src/src/query.ts`
+- `codes/claude-code-sourcemap/restored-src/src/services/api/claude.ts`
+- `codes/claude-code-sourcemap/restored-src/src/utils/messages.ts`
+- `codes/claude-code-sourcemap/restored-src/src/utils/sessionStorage.ts`
+- `codes/claude-code-sourcemap/restored-src/src/hooks/useLogMessages.ts`
+- `codes/claude-code-sourcemap/restored-src/src/types/logs.ts`
+- `codes/claude-code-sourcemap/restored-src/src/entrypoints/sdk/coreSchemas.ts`
+- `codes/claude-code-sourcemap/restored-src/src/remote/sdkMessageAdapter.ts`
+- `codes/claude-code-sourcemap/restored-src/src/cli/transports/HybridTransport.ts`
 
 ### AionUi
 
@@ -844,6 +1085,7 @@ flowchart LR
 | 完成后一次入库 | stream 只在内存聚合，finish 后写完整消息 | DB 压力最低，历史最干净 | 刷新会丢失生成中内容 | 简单聊天、可接受生成中刷新丢失 |
 | placeholder + 节流 update | 先插入 assistant 空消息，stream 中每隔一段时间更新同一行 | 刷新可恢复部分内容 | DB 写更多，需要处理并发覆盖 | 产品级聊天、多端同步 |
 | event log + final snapshot | 每个事件 append log，完成后写最终消息 | 可回放、可 debug、审计好 | 存储量大，查询复杂 | Agent、工具链、企业审计 |
+| transcript chain JSONL | 每条完整消息或 metadata entry 一行，用 `parentUuid` 串链 | resume、fork、compact、sidechain 语义强 | 读取逻辑复杂，需要链恢复和去重 | Claude Code 类 CLI、本地 agent |
 | JSONL append | 每条完整消息或 SDK message 一行 | 本地简单、迁移方便 | 查询和索引弱 | 桌面本地应用 |
 | 替换式 snapshot | 始终覆盖最后一条 agent 消息或整个 state 文件 | 实现简单，适合终端输出 | 不保留细粒度过程 | PTY/终端类应用 |
 
@@ -941,6 +1183,41 @@ LobeHub 的 `dbMessagesMap` / `messagesMap` 是一个好例子：
 - 临时 UI 状态。
 
 这些不一定适合作为 DB 主结构。
+
+### 7. Transcript 型存储不是简单消息数组
+
+Claude Code sourcemap 说明了另一类本地 agent 存储：transcript 是 append-only JSONL，但读取时不是“按文件顺序全部渲染”。
+
+它至少有四层含义：
+
+- 行级追加：每一行是 message 或 metadata entry。
+- 消息链：主消息通过 `uuid` / `parentUuid` 串成 conversation chain。
+- 元数据流：标题、tag、worktree、content replacement、compact 信息用独立 entry 表达。
+- 恢复算法：resume 时根据 parent chain、compact boundary、sidechain 信息重建可用上下文。
+
+因此如果采用 transcript JSONL，格式里必须显式设计：
+
+```ts
+type TranscriptMessage = PersistedMessage & {
+  uuid: string;
+  parentUuid: string | null;
+  logicalParentUuid?: string | null;
+  isSidechain: boolean;
+  agentId?: string;
+  cwd: string;
+  entrypoint?: string;
+  version: string;
+};
+
+type TranscriptEntry =
+  | { type: 'message'; message: TranscriptMessage }
+  | { type: 'summary'; leafUuid: string; summary: string }
+  | { type: 'custom-title'; sessionId: string; customTitle: string }
+  | { type: 'content-replacement'; sessionId: string; replacements: unknown[] }
+  | { type: 'worktree-state'; sessionId: string; worktreeSession: unknown | null };
+```
+
+如果后续只做普通聊天，关系型 `messages` 表更简单；如果要做 Claude Code 式 resume、fork、compact、subagent，必须把 `parentUuid` 和 metadata entry 作为一等设计。
 
 ## 推荐表结构
 
@@ -1050,6 +1327,7 @@ create unique index message_events_session_seq_idx on message_events (session_id
 
 - 协议和事件分层：参考 acpx。
 - 前端实时/历史合并：参考 Claude Code UI。
+- Claude Code CLI transcript、resume、compact、sidechain：参考 Claude Code sourcemap。
 - 按 ID 合并 chunk、tool、plan：参考 AionUi。
 - 产品级 DB schema 和乐观更新：参考 LobeHub。
 - 本地 JSONL 方案：参考 Proma。
@@ -1060,6 +1338,15 @@ create unique index message_events_session_seq_idx on message_events (session_id
 - `docs/message-formats/README.md`
 - `docs/message-formats/acpx.md`
 - `docs/message-formats/claudecodeui.md`
+- `codes/claude-code-sourcemap/restored-src/src/query.ts`
+- `codes/claude-code-sourcemap/restored-src/src/services/api/claude.ts`
+- `codes/claude-code-sourcemap/restored-src/src/utils/messages.ts`
+- `codes/claude-code-sourcemap/restored-src/src/utils/sessionStorage.ts`
+- `codes/claude-code-sourcemap/restored-src/src/hooks/useLogMessages.ts`
+- `codes/claude-code-sourcemap/restored-src/src/types/logs.ts`
+- `codes/claude-code-sourcemap/restored-src/src/entrypoints/sdk/coreSchemas.ts`
+- `codes/claude-code-sourcemap/restored-src/src/remote/sdkMessageAdapter.ts`
+- `codes/claude-code-sourcemap/restored-src/src/cli/transports/HybridTransport.ts`
 - `docs/message-formats/AionUi.md`
 - `docs/message-formats/lobehub.md`
 - `docs/message-formats/proma.md`
