@@ -40,3 +40,9 @@
 [submodule "codes/claude-code-sourcemap"]
 	path = codes/claude-code-sourcemap
 	url = https://github.com/ChinaSiro/claude-code-sourcemap.git
+[submodule "codes/codex"]
+	path = codes/codex
+	url = https://github.com/openai/codex.git
+[submodule "codes/DeepSeek-Reasonix"]
+	path = codes/DeepSeek-Reasonix
+	url = https://github.com/esengine/DeepSeek-Reasonix.git
