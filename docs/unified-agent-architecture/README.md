@@ -1,19 +1,19 @@
 # AI 编码工具统一调度架构研究
 
-对 7 个开源项目如何统一调用 Claude Code、Codex、Gemini、OpenCode 等 AI 编码工具的研究总结。
+对 8 个开源项目如何统一调用 Claude Code、Codex、Gemini、OpenCode 等 AI 编码工具的研究总结。
 
 ## 项目全景对比
 
-| 维度 | CC GUI | Claude Code UI | acpx | AgentAPI | AionUi | LobeHub | Proma |
-|------|--------|---------------|------|----------|--------|---------|-------|
-| **类型** | IDE 插件 | Web UI | CLI 客户端 | HTTP API 服务器 | 桌面应用 | Web 应用 | 桌面应用 |
-| **技术栈** | Java + Node.js | Express + React | TypeScript CLI | Go + Next.js | Electron + React | Next.js monorepo | Electron + Bun monorepo |
-| **统一方式** | Bridge 抽象类 | IProvider 五面接口 | ACP 协议 | AgentIO + Conversation | ClientFactory + ACP | LobeRuntimeAI | Provider Adapter + Claude Agent SDK |
-| **Agent CLI 数** | 2 (Claude, Codex) | 4 (Claude, Codex, Cursor, Gemini) | 16 (全部通过 ACP) | 12 (PTY 终端仿真) | 17+ (ACP + 非 ACP) | 80+ (LLM Provider) | Chat 3 Provider / Agent 8 Channel |
-| **通信协议** | NDJSON over stdio | SDK / child_process | JSON-RPC 2.0 over stdio | PTY / ACP | ACP + IPC/WebSocket | HTTP (OpenAI/Anthropic SDK) | IPC + SDK child_process / fetch SSE |
-| **消息标准化** | SDK 原生事件 | NormalizedMessage | AcpRuntimeEvent | ConversationMessage | TMessage | ChatStreamPayload | AgentEvent + ChatStreamState |
-| **进程模式** | Daemon + Per-process | SDK / spawn | spawn (一类一进程) | PTY spawn | ACP spawn | HTTP 请求 | SDK child_process / fetch |
-| **核心设计模式** | 模板方法 + 策略 | 抽象工厂 + 适配器 | 注册表 + 适配器 | 策略 + 桥接 | 工厂 + 状态机 | 工厂 + Router | 适配器 + 事件总线 + 原子状态 |
+| 维度 | CC GUI | Claude Code UI | acpx | AgentAPI | AionUi | LobeHub | Proma | Agent Spaces |
+|------|--------|---------------|------|----------|--------|---------|-------|--------------|
+| **类型** | IDE 插件 | Web UI | CLI 客户端 | HTTP API 服务器 | 桌面应用 | Web 应用 | 桌面应用 | 本地多 Agent 工作台 |
+| **技术栈** | Java + Node.js | Express + React | TypeScript CLI | Go + Next.js | Electron + React | Next.js monorepo | Electron + Bun monorepo | Express + Next.js + SQLite |
+| **统一方式** | Bridge 抽象类 | IProvider 五面接口 | ACP 协议 | AgentIO + Conversation | ClientFactory + ACP | LobeRuntimeAI | Provider Adapter + Claude Agent SDK | AgentRuntime + AgentRuntimeEvent |
+| **Agent CLI 数** | 2 (Claude, Codex) | 4 (Claude, Codex, Cursor, Gemini) | 16 (全部通过 ACP) | 12 (PTY 终端仿真) | 17+ (ACP + 非 ACP) | 80+ (LLM Provider) | Chat 3 Provider / Agent 8 Channel | 5 Runtime (Claude, Codex, OpenAgentSDK, LangChain, Hermes) |
+| **通信协议** | NDJSON over stdio | SDK / child_process | JSON-RPC 2.0 over stdio | PTY / ACP | ACP + IPC/WebSocket | HTTP (OpenAI/Anthropic SDK) | IPC + SDK child_process / fetch SSE | SDK stream -> WS/SSE |
+| **消息标准化** | SDK 原生事件 | NormalizedMessage | AcpRuntimeEvent | ConversationMessage | TMessage | ChatStreamPayload | AgentEvent + ChatStreamState | MessagePart + chain/tool detail |
+| **进程模式** | Daemon + Per-process | SDK / spawn | spawn (一类一进程) | PTY spawn | ACP spawn | HTTP 请求 | SDK child_process / fetch | SDK runtime + per-agent config dir |
+| **核心设计模式** | 模板方法 + 策略 | 抽象工厂 + 适配器 | 注册表 + 适配器 | 策略 + 桥接 | 工厂 + 状态机 | 工厂 + Router | 适配器 + 事件总线 + 原子状态 | Runtime 工厂 + 事件归一化 + 混合存储 |
 
 ## 统一的五种架构范式
 
@@ -94,6 +94,7 @@
 | AionUi | `TMessage` | AcpAdapter 转换 ACP SessionUpdate |
 | LobeHub | OpenAI Chat Stream | 各 Provider 适配器统一到 OpenAI 流格式 |
 | Proma | `AgentEvent` / `ChatStreamState` | convertSDKMessage() / adapter.parseSSELine() |
+| Agent Spaces | `AgentRuntimeEvent` / `MessagePart` | Claude/Codex SDK stream -> runtime event -> chain/text/context parts |
 
 ## 各项目文档
 
@@ -106,3 +107,4 @@
 | AionUi (桌面应用) | [AionUi.md](./AionUi.md) |
 | LobeHub (Web 应用) | [lobehub.md](./lobehub.md) |
 | Proma (桌面工作台) | [proma.md](./proma.md) |
+| Agent Spaces (本地多 Agent 工作台) | [agent-spaces.md](./agent-spaces.md) |

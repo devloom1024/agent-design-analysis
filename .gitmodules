@@ -46,3 +46,6 @@
 [submodule "codes/DeepSeek-Reasonix"]
 	path = codes/DeepSeek-Reasonix
 	url = https://github.com/esengine/DeepSeek-Reasonix.git
+[submodule "codes/agent-spaces"]
+	path = codes/agent-spaces
+	url = https://github.com/hunmer/agent-spaces.git
