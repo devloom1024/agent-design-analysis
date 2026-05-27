@@ -207,6 +207,6 @@ AgentAPI 是 HTTP API + Web Chat 界面，核心形态是服务端和网页，�
 
 - [AionUi UI 渲染层](../../docs/ui-rendering/AionUi.md)
 - [LobeHub UI 渲染层](../../docs/ui-rendering/lobehub.md)
-- [ClawTeam 与 AionUi 的 Agent Team 深度分析](../../docs/agent-team/clawteam-aionui.md)
+- [Agent Team 实现总览](../../docs/agent-team/README.md)
 - [AionUi WebUI 文档](../../codes/AionUi/docs/guides/webui.md)
 - [LobeHub Desktop 文档](../../codes/lobehub/docs/self-hosting/advanced/desktop.mdx)

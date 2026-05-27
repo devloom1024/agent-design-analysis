@@ -24,7 +24,7 @@ agent-design-analysis/
 │   ├── unified-agent-architecture/ # 统一架构范式
 │   ├── message-formats/            # 消息格式标准化
 │   ├── agent-lifecycle/            # Agent 会话与进程生命周期
-│   ├── agent-team/                # ClawTeam 与 AionUi 的 Agent Team 研究
+│   ├── agent-team/                # Agent Team / 多 Agent 协作实现研究
 │   ├── tool-permissions/           # 工具调用与权限机制
 │   ├── ui-rendering/               # UI 渲染层（流式 + 历史）
 │   ├── sdk-protocols/              # 底层 SDK 协议接口定义
@@ -85,9 +85,9 @@ agent-design-analysis/
 
 会话与进程生命周期分析，对比状态机设计（隐式到 7 态 FSM）、进程启动/关闭策略、重连与恢复机制、Proma 独有的 forkSession / rewindSession 功能。
 
-### [agent-team/clawteam-aionui.md](docs/agent-team/clawteam-aionui.md)
+### [agent-team/](docs/agent-team/)
 
-ClawTeam 与 AionUi 的 agent team 实现深度分析，重点比较外部 swarm runtime 与应用内 team runtime 在消息、任务、隔离和 MCP 注入上的实现差异。
+Agent Team / 多 Agent 协作实现研究，覆盖 ClawTeam、AionUi、Claude Code sourcemap、LobeHub、AgentScope Java，并参考 Learn Claude Code 的教学拆解方式。
 
 ### [tool-permissions/](docs/tool-permissions/)
 
