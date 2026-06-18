@@ -45,6 +45,7 @@
 | 项目 | 文档 |
 |------|------|
 | Stream 与入库消息形态设计 | [stream-vs-persisted-message-design.md](./stream-vs-persisted-message-design.md) |
+| Agent LLM Cache 命中率设计 | [llm-cache-hit-rate-for-agents.md](./llm-cache-hit-rate-for-agents.md) |
 | CC GUI (JetBrains 插件) | [jetbrains-cc-gui.md](./jetbrains-cc-gui.md) |
 | Claude Code UI | [claudecodeui.md](./claudecodeui.md) |
 | acpx | [acpx.md](./acpx.md) |

@@ -37,6 +37,18 @@
 [submodule "codes/ClawTeam"]
 	path = codes/ClawTeam
 	url = https://github.com/HKUDS/ClawTeam.git
+[submodule "codes/claude-code-sourcemap"]
+	path = codes/claude-code-sourcemap
+	url = https://github.com/ChinaSiro/claude-code-sourcemap.git
+[submodule "codes/codex"]
+	path = codes/codex
+	url = https://github.com/openai/codex.git
+[submodule "codes/DeepSeek-Reasonix"]
+	path = codes/DeepSeek-Reasonix
+	url = https://github.com/esengine/DeepSeek-Reasonix.git
+[submodule "codes/agent-spaces"]
+	path = codes/agent-spaces
+	url = https://github.com/hunmer/agent-spaces.git
 [submodule "codes/zed"]
 	path = codes/zed
 	url = https://github.com/zed-industries/zed.git
