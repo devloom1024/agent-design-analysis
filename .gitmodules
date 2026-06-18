@@ -37,3 +37,6 @@
 [submodule "codes/ClawTeam"]
 	path = codes/ClawTeam
 	url = https://github.com/HKUDS/ClawTeam.git
+[submodule "codes/zed"]
+	path = codes/zed
+	url = https://github.com/zed-industries/zed.git
