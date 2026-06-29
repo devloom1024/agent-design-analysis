@@ -55,3 +55,6 @@
 [submodule "codes/codex-acp"]
 	path = codes/codex-acp
 	url = https://github.com/agentclientprotocol/codex-acp.git
+[submodule "codes/claude-agent-acp"]
+	path = codes/claude-agent-acp
+	url = https://github.com/agentclientprotocol/claude-agent-acp.git
