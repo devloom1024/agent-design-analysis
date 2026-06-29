@@ -52,3 +52,6 @@
 [submodule "codes/zed"]
 	path = codes/zed
 	url = https://github.com/zed-industries/zed.git
+[submodule "codes/codex-acp"]
+	path = codes/codex-acp
+	url = https://github.com/agentclientprotocol/codex-acp.git
